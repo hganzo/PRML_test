@@ -4,6 +4,7 @@
 module GaussianMixtureModel
 #Pkg.add("Distributions")
 using Distributions
+srand(2)
 using PDMats
 
 # global structure
@@ -70,7 +71,7 @@ function sample_data(gmm::GMM, N::Int)
     S = categorical_sample(gmm.phi, N) # X components
     for n in 1 : N
         k = indmax(S[:, n])
-        X[:,n] = rand(MvNormal(gmm.Gcmp[k].mu, PDMats.PDMat(Symmetric(inv(gmm.Gcmp[k].Lambda)))))
+        X[:,n] = rand(MvNormal(gmm.Gcmp[k].mu,PDMats.PDMat(Symmetric(inv(gmm.Gcmp[k].Lambda)))))
         end
     return X, S
 end
@@ -93,32 +94,64 @@ function learn_em(X::Matrix{Float64}, K::Int, max_iter::Int)
     
     println("test")
     N = size(X, 2) # data dims
-# initialize
+    D = size(X, 1)
+
+    # initialize
     phi = rand(Dirichlet(100.0*ones(K)))
-    S = categorical_sample(phi,N)    
-    pi_k = sum(S,2)/sum(S)
+    S = categorical_sample(phi, N)    
+    pi_k = sum(S,2)[:,1]/sum(S)
     cmp = Vector{Gauss}()
-    for c in 1:3
-        mu = vec(mean(X[:,find(S[c,:].==1)],2))
+    for c in 1 : K
+        mu = vec(mean(X[:,find(S[c,:].==1)], 2))
         Lambda = cov(X[:,find(S[c,:].==1)]')
         println(mu,Lambda)
         push!(cmp, Gauss(mu, Lambda))
+        println(mu)
     end
-    gmm=GMM(size(X,1), K , pi_k, cmp)
+    gmm=GMM(D, K , pi_k, cmp)
+    gamma_kn = zeros(K,N)
 # initialize fin.
-
-#    gammas=zeros(max_iter,3)
-#    mus=zeros(max_iter,3)
-#    GMM(size(X,1), K, )
-
-#    for i in 1 : max_iter
-#        for c in gmm.Gcmp
-#            gammas[1,i]=pdf(gmm,X)
-#        end
-#    end
-
-   
-    return 111
+    calc_ELBO = -Inf
+    local gmm_best::GMM, ELBO_best::Float64
+    for iter in 1:max_iter
+#        println(iter)
+        for c in 1 : K
+#            println(PDMats.PDMat(Symmetric(inv(gmm.Gcmp[c].Lambda))))
+            gamma_kn[c,:] .= pi_k[c]*pdf(MvNormal(gmm.Gcmp[c].mu, PDMats.PDMat(Symmetric(pinv(gmm.Gcmp[c].Lambda)))), X)
+        end
+        
+        if calc_ELBO<sum(log.(sum(gamma_kn,1))) 
+            gmm_best=gmm
+            ELBO_best=sum(log.(sum(gamma_kn,1)))
+        end
+        calc_ELBO=sum(log.(sum(gamma_kn,1)))
+        
+        gamma_kn .= gamma_kn ./ sum(gamma_kn,1)
+#       println(gamma_kn)
+#       println(size(gamma_kn))
+        Nk=sum(gamma_kn,2)[:,1]
+        # calc mu_new
+        for c in 1 : K
+            gmm.Gcmp[c].mu.=zeros(D,1)[:,1]
+            for n in 1:N
+                gmm.Gcmp[c].mu .+= gamma_kn[c,n]*X[:,n]
+            end
+            gmm.Gcmp[c].mu ./= Nk[c]
+        end
+        # calc Lambda_new
+        for c in 1 : K
+            gmm.Gcmp[c].Lambda.=zeros(D, D)
+            for n in 1:N
+                gmm.Gcmp[c].Lambda .+= gamma_kn[c,n] * (X[:,n].-gmm.Gcmp[c].mu)*(X[:,n].-gmm.Gcmp[c].mu)'
+            end
+            gmm.Gcmp[c].Lambda ./=  Nk[c]
+#            println(gmm.Gcmp[c].Lambda)
+#            println(gmm.Gcmp[c].Lambda, gmm.Gcmp[c].mu)
+        end
+        pi_k .= Nk./sum(Nk)
+#        maxval,maxind=findmax(gamma_kn,2)        
+    end
+    return gmm,calc_ELBO, gmm_best,ELBO_best
 end
 
 
