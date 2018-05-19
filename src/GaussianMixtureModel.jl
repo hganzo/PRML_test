@@ -4,7 +4,7 @@
 module GaussianMixtureModel
 #Pkg.add("Distributions")
 using Distributions
-srand(1)
+srand(2)
 using PDMats
 
 # global structure
@@ -71,7 +71,7 @@ function sample_data(gmm::GMM, N::Int)
     S = categorical_sample(gmm.phi, N) # X components
     for n in 1 : N
         k = indmax(S[:, n])
-        X[:,n] = rand(MvNormal(gmm.Gcmp[k].mu,PDMats.PDMat(Symmetric(inv(gmm.Gcmp[k].Lambda)))))
+        X[:,n] = rand(MvNormal(gmm.Gcmp[k].mu,PDMats.PDMat(Symmetric(pinv(gmm.Gcmp[k].Lambda)))))
         end
     return X, S
 end
@@ -91,8 +91,6 @@ function categorical_sample(p::Vector{Float64}, N::Int)
 end
 
 function learn_em(X::Matrix{Float64}, K::Int, max_iter::Int)
-    
-    println("test")
     N = size(X, 2) # data dims
     D = size(X, 1)
 
@@ -104,7 +102,7 @@ function learn_em(X::Matrix{Float64}, K::Int, max_iter::Int)
     for c in 1 : K
         mu = vec(mean(X[:,find(S[c,:].==1)], 2))
         Lambda = cov(X[:,find(S[c,:].==1)]') #/2.
-        println(mu,Lambda)
+#        println(mu,Lambda)
         push!(cmp, Gauss(mu, Lambda))
     end
     gmm=GMM(D, K , pi_k, cmp)
@@ -114,7 +112,7 @@ function learn_em(X::Matrix{Float64}, K::Int, max_iter::Int)
     local gmm_best::GMM, ELBO_best::Float64
     @time for iter in 1:max_iter
         for c in 1 : K
-            gamma_kn[c,:] .= pi_k[c]*pdf(MvNormal(gmm.Gcmp[c].mu, PDMats.PDMat(Symmetric(pinv2(gmm.Gcmp[c].Lambda)))), X)
+            gamma_kn[c,:] .= pi_k[c]*pdf(MvNormal(gmm.Gcmp[c].mu, PDMats.PDMat(Symmetric(pinv(gmm.Gcmp[c].Lambda)))), X)
         end
         
         if calc_ELBO<sum(log.(sum(gamma_kn,1))) 

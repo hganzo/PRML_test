@@ -1,18 +1,12 @@
 Path_MySrc="src/"
 #
 push!(LOAD_PATH,Path_MySrc)
-# include -> can't use "struct BGMM" on 2 times ...unknown?
 
 import GaussianMixtureModel
-#Pkg.add("Plots")
 using Plots
-#Pkg.add("GR")
-#Plots.gr()
-
 
 function test()
-    D = 2
-    K = 3
+    D = 2; K = 5
     alpha = 100.0 * ones(K) # related with componets weights 
     beta = 0.02 # ?
     m = zeros(D)
@@ -21,11 +15,11 @@ function test()
     cmp = [GaussianMixtureModel.GW(beta, m, nu, W) for _ in 1:K]
     bgmm = GaussianMixtureModel.BGMM(D, K, alpha, cmp)
 
-    N = 100
+    N = 10000
     gmm = GaussianMixtureModel.sample_GMM(bgmm)
     X, S = GaussianMixtureModel.sample_data(gmm,N)
 
-    max_iter = 100
+    max_iter = 1000
     gmm_fit,last_ELBO,gmm_best,ELBO_best = GaussianMixtureModel.learn_em(X, K, max_iter)
 #    println(gmm_best.Gcmp[1].mu)
 #    println(gmm_best.Gcmp[2].mu)
@@ -36,7 +30,7 @@ function test()
 end
 
 X, gmm, gmm_best = test()
-quit()
+
 scatter(X[1,:],X[2,:],title="test"); savefig("pic/test.png")
 mus=[gmm.Gcmp[1].mu[1] gmm.Gcmp[1].mu[2];
      gmm.Gcmp[2].mu[1] gmm.Gcmp[2].mu[2];
