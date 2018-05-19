@@ -9,9 +9,10 @@ using Plots
 #Pkg.add("GR")
 #Plots.gr()
 
+
 function test()
     D = 2
-    K = 5
+    K = 3
     alpha = 100.0 * ones(K) # related with componets weights 
     beta = 0.02 # ?
     m = zeros(D)
@@ -20,21 +21,22 @@ function test()
     cmp = [GaussianMixtureModel.GW(beta, m, nu, W) for _ in 1:K]
     bgmm = GaussianMixtureModel.BGMM(D, K, alpha, cmp)
 
-    N = 5000
+    N = 100
     gmm = GaussianMixtureModel.sample_GMM(bgmm)
     X, S = GaussianMixtureModel.sample_data(gmm,N)
 
     max_iter = 100
     gmm_fit,last_ELBO,gmm_best,ELBO_best = GaussianMixtureModel.learn_em(X, K, max_iter)
-    println(gmm_best.Gcmp[1].mu)
-    println(gmm_best.Gcmp[2].mu)
-    println(gmm_best.Gcmp[3].mu)
-    println(gmm_best.Gcmp[4].mu)
-    println(gmm_best.Gcmp[5].mu)
+#    println(gmm_best.Gcmp[1].mu)
+#    println(gmm_best.Gcmp[2].mu)
+#    println(gmm_best.Gcmp[3].mu)
+#    println(gmm_best.Gcmp[4].mu)
+#    println(gmm_best.Gcmp[5].mu)
     return X, gmm_fit, gmm_best
 end
 
 X, gmm, gmm_best = test()
+quit()
 scatter(X[1,:],X[2,:],title="test"); savefig("pic/test.png")
 mus=[gmm.Gcmp[1].mu[1] gmm.Gcmp[1].mu[2];
      gmm.Gcmp[2].mu[1] gmm.Gcmp[2].mu[2];
